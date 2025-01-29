@@ -1,0 +1,169 @@
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
+import javafx.stage.Stage;
+
+public class Main extends Application {
+	int[][] grid, finalSol;
+	GridPane gridPane;
+	int selectedNumber = 0;
+	boolean[][] isFromFile;
+
+	@Override
+	public void start(Stage primaryStage) throws Exception {
+		grid = new int[9][9];
+		isFromFile = new boolean[9][9];
+		finalSol = new int[9][9];
+		int[][] array = { { 3, 0, 6, 5, 0, 8, 4, 0, 0 }, { 5, 2, 0, 0, 0, 0, 0, 0, 0 }, { 0, 8, 7, 0, 0, 0, 0, 3, 1 },
+				{ 0, 0, 3, 0, 1, 0, 0, 8, 0 }, { 9, 0, 0, 8, 6, 3, 0, 0, 5 }, { 0, 5, 0, 0, 9, 0, 6, 0, 0 },
+				{ 1, 3, 0, 0, 0, 0, 2, 5, 0 }, { 0, 0, 0, 0, 0, 0, 0, 7, 4 }, { 0, 0, 5, 2, 0, 6, 3, 0, 0 } };
+		
+		initializeGrid(readFromFile("puzzle2.txt"));
+		SudokuGrid gridPane = new SudokuGrid(grid, isFromFile);
+
+		GridPane buttonGrid = new GridPane();
+		buttonGrid.setHgap(5);
+		buttonGrid.setVgap(5);
+		BorderPane.setMargin(buttonGrid, new Insets(10, 10, 0, 0));
+		int buttonSize = 100;
+		for (int i = 0; i < 9; i++) {
+			Button button = new Button(Integer.toString(i + 1));
+			button.setPrefSize(buttonSize, buttonSize);
+
+			final int number = i + 1;
+			button.setOnAction(e -> {
+				SudokuGrid.setSelectedNumber(number);
+			});
+			buttonGrid.add(button, i % 3, i / 3);
+		}
+		Button checkSol = new Button("check my Solution so far");
+		Text numberOfMistakes = new Text("");
+		HBox hbox = new HBox(5);
+		hbox.getChildren().addAll(checkSol);
+		Button hideResultButton = new Button("hide Perfect Solution");
+		Button restButton = new Button("Rest");
+
+		hideResultButton.setDisable(true);
+		Button showResultButton = new Button("Show Perfect Solution");
+		showResultButton.setAlignment(Pos.BASELINE_RIGHT);
+		showResultButton.setStyle("-fx-text-fill: black; " + "-fx-font-size: 18px; " + "-fx-font-weight: bold; "
+				+ "-fx-border-radius: 5px; " + "-fx-background-radius: 5px;");
+
+		checkSol.setOnAction(e -> {
+			int counter = gridPane.checkSolution();
+			if (counter == 0) {
+				if (gridPane.isWinner())
+					numberOfMistakes.setText("you won !!");
+
+				else
+					numberOfMistakes.setText("no mistakes. keep going.");
+
+			} else
+				numberOfMistakes.setText("you got " + counter + "mistakes.");
+			hbox.getChildren().remove(numberOfMistakes);
+			hbox.getChildren().add(numberOfMistakes);
+
+		});
+		showResultButton.setOnAction(e -> {
+			SudokuGrid.solution(finalSol);
+			gridPane.updateUI(finalSol);
+			disableButton(hideResultButton, showResultButton);
+			checkSol.setDisable(true);
+			restButton.setDisable(true);
+		});
+		hideResultButton.setOnAction(e -> {
+			gridPane.setDefaultGrid();
+			checkSol.setDisable(false);
+			restButton.setDisable(false);
+
+			gridPane.updateUI(grid);
+			disableButton(hideResultButton, showResultButton);
+
+		});
+		restButton.setOnAction(e -> {
+			gridPane.reset();
+			checkSol.fire();
+		});
+		HBox containerForHideAndRest = new HBox(30);
+		containerForHideAndRest.getChildren().addAll(hideResultButton, restButton);
+		VBox rightSide = new VBox(20);
+		rightSide.getChildren().addAll(buttonGrid, showResultButton, containerForHideAndRest, hbox);
+
+		BorderPane root = new BorderPane();
+		root.setCenter(gridPane.getGridPane());
+		root.setRight(rightSide);
+
+		Scene scene = new Scene(root, 800, 500);
+		primaryStage.setTitle("Sudoku Backtracking");
+		primaryStage.setScene(scene);
+		primaryStage.show();
+	}
+
+	private void disableButton(Button button, Button button2) {
+		if (button.isDisable()) {
+			button.setDisable(false);
+			button2.setDisable(true);
+		} else {
+			button.setDisable(true);
+			button2.setDisable(false);
+
+		}
+	}
+
+	public void initializeGrid(int input[][]) {
+
+		for (int row = 0; row < 9; row++) {
+			for (int col = 0; col < 9; col++) {
+				if (input[row][col] != 0) {
+					grid[row][col] = input[row][col];
+					finalSol[row][col] = input[row][col];
+
+					isFromFile[row][col] = true;
+				}
+			}
+		}
+	}
+
+	public static void main(String[] args) {
+		launch(args);
+	}
+
+	public int [][] readFromFile(String filePath) {
+		int array[][] = new int[9][9];
+		try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+			String line;
+			int row = 0;
+			while ((line = reader.readLine()) != null && row < 9) {
+				line = line.trim().replaceAll("[{}]", "").trim();
+
+				String[] values = line.split(",");
+
+				for (int col = 0; col < 9; col++) {
+					String value = values[col].replaceAll("[^0-9]", "").trim();
+
+					array[row][col] = Integer.parseInt(value);
+
+				}
+				row++; 
+			}
+		} catch (IOException e) {
+			System.err.println("Error reading file: " + e.getMessage());
+		} catch (Exception e) {
+			System.err.println("Error parsing grid data: " + e.getMessage());
+		}
+		return array;
+
+	}
+
+}
